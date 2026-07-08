@@ -1,14 +1,18 @@
 import { http } from './client';
 import * as cheerio from 'cheerio';
 
-async function obtenerViewStateInicial(): Promise<string> {
+export async function obtenerViewStateInicial(): Promise<string> {
 	try {
 		console.log('Iniciando petición GET a la OEFA');
 		
+		// Se descarga HTML desde la página de consultas,
+		// se carga en Cheerio para explorarlo,
+		// y se busca/extrae el campo que contiene al ViewState 
 		const responseGet = await http.get<string>('/repdig/consulta/consultaTfa.xhtml');
 		const $ = cheerio.load(responseGet.data);
 		const viewState = $('input[name="javax.faces.ViewState"]').val() as string;
 		
+		// Se valida si el input ya no existe
 		if (!viewState) {
 			throw new Error('No se pudo encontrar el ViewState');
 		}
@@ -17,14 +21,18 @@ async function obtenerViewStateInicial(): Promise<string> {
 		return viewState;
 	}
 	catch (error) {
+		// Captura y muestra si hay problemas de red o conexión con la página
 		console.error('Error obteniendo el ViewState inicial:', error);
 		throw error;
 	}
 }
 
-async function buscarPagina(viewState: string, dtFirst: number): Promise<string> {
+export async function buscarPagina(viewState: string, dtFirst: number): Promise<string> {
 	console.log('Preparando los datos para la búsqueda');
 	
+	// Se preparan los parámetros obligatorios del formulario (payload),
+	// especificando el número de página a consultar con dtFirst,
+	// y se envía una petición POST para obtener los resultados de la búsqueda
 	const payload = new URLSearchParams();
 	
 	payload.append('javax.faces.partial.ajax', 'true');
@@ -47,18 +55,18 @@ async function buscarPagina(viewState: string, dtFirst: number): Promise<string>
 	return responsePost.data;
 }
 
-function parsearTabla(xmlParcial: string): any[] {
+export function parsearTabla(xmlParcial: string): any[] {
 	console.log('Procesando respuesta XML parcial de PrimeFaces');
 	
+	// Se carga la respuesta del servidor en modo XML,
+	// y se extrae el texto HTML oculto dentro de la etiqueta <update>
 	const $xml = cheerio.load(xmlParcial, { xmlMode: true });
-	
-	// 2. Buscamos la etiqueta <update> que contiene la tabla
-	// PrimeFaces usualmente actualiza el contenedor de la lista ('listarDetalleInfraccionRAAForm:pgLista')
 	const htmlContenido = $xml('update[id*="pgLista"]').text();
 	
+	// Control de errores en caso de que la estructura del XML cambie,
+	// intentando buscar cualquier bloque de actualización alternativo
 	if (!htmlContenido) {
 		console.warn('No se encontró el bloque de actualización esperado en el XML. Intentando leer todo el contenido.');
-		// Si no encuentra ese ID exacto, extraemos el texto de cualquier etiqueta <update>
 		const cualquierUpdate = $xml('update').text();
 		if (!cualquierUpdate) {
 			console.error('El XML no contiene bloques <update> válidos.');
@@ -66,15 +74,14 @@ function parsearTabla(xmlParcial: string): any[] {
 		}
 	}
 	
-	// 3. Ahora que tenemos el HTML real limpio (fuera del CDATA), 
-	// creamos una NUEVA instancia de Cheerio en modo HTML normal.
+	// Se crea una nueva instancia de Cheerio ya con el HTML aislado,
+	// y se seleccionan todas las filas (tr) de la tabla limpia
 	const $ = cheerio.load(htmlContenido || $xml('update').text());
 	const registros: any[] = [];
-	
-	// 4. Buscamos las filas. Al estar aislados en el HTML real, 
-	// podemos buscar directamente las etiquetas 'tr'
 	const filas = $('tr');
 	
+	// Se recorre cada fila descartando las vacías,
+	// se extrae el texto de las celdas (td) y se arma el objeto final
 	filas.each((index, elemento) => {
 		if ($(elemento).hasClass('ui-datatable-empty-message')) return;
 		const celdas = $(elemento).find('td');
@@ -95,13 +102,3 @@ function parsearTabla(xmlParcial: string): any[] {
 	
 	return registros;
 }
-
-async function main() {
-	const viewState = await obtenerViewStateInicial();
-	const xml = await buscarPagina(viewState, 0);
-	const registros = parsearTabla(xml);
-	console.log(`Se encontraron ${registros.length} registros`);
-	console.log(registros[0]); // mostramos el primero para inspeccionar
-}
-
-main();
