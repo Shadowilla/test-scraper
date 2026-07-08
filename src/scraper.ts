@@ -87,6 +87,12 @@ export function parsearTabla(xmlParcial: string): any[] {
 		const celdas = $(elemento).find('td');
 		if (celdas.length === 0) return;
 		
+		// Se lee el atributo 'onclick' del enlace <a> dentro de las celdas
+		const onclickTexto = $(celdas).find('a').attr('onclick') || '';
+		
+		// Se extraen los datos de 'onclick'
+		const datosDescarga = extraerDatosDescarga(onclickTexto);
+		
 		const registro = {
 			nro: $(celdas.get(0)).text().trim(),
 			expediente: $(celdas.get(1)).text().trim(),
@@ -94,11 +100,19 @@ export function parsearTabla(xmlParcial: string): any[] {
 			unidadFiscalizable: $(celdas.get(3)).text().trim(),
 			sector: $(celdas.get(4)).text().trim(),
 			resolucion: $(celdas.get(5)).text().trim(),
-			archivoUrl: $(celdas).find('a').attr('href') || 'No tiene'
+			componente: datosDescarga ? datosDescarga.componente : 'No tiene',
+			uuid: datosDescarga ? datosDescarga.uuid : 'No tiene'
 		};
 		
 		registros.push(registro);
 	});
 	
 	return registros;
+}
+
+export function extraerDatosDescarga(onclick: string): { componente: string; uuid: string } | null {
+	// Busca: 'ALGO:j_idt63':'ALGO:j_idt63'  y  'param_uuid':'ALGO'
+	const match = onclick.match(/'([\w:]+:j_idt63)':'[\w:]+','param_uuid':'([\w-]+)'/);
+	if (!match) return null;
+	return { componente: match[1], uuid: match[2] };
 }
