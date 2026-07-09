@@ -1,4 +1,4 @@
-import { obtenerViewStateInicial, buscarPagina, parsearTabla, extraerNuevoViewState, descargarPDF } from './src/scraper.ts';
+import { obtenerViewStateInicial, buscarPagina, parsearTabla, extraerNuevoViewState, descargarPDF,  limpiarNombreArchivo} from './src/scraper.ts';
 /*async function main() {
 	let viewState = await obtenerViewStateInicial();
 	let registrosTotales: any[] = [];
@@ -27,13 +27,16 @@ async function main() {
 	viewState = extraerNuevoViewState(xml);
 
 	console.log('Primer registro:', registros[0]);
-
-	await descargarPDF(
-		viewState,
-		registros[0].componente,
-		registros[0].uuid,
-		'prueba.pdf'
-	);
+	
+	for (const registro of registros) {
+		console.log(`Expediente: ${registro.expediente}, UUID: ${registro.uuid}`);
+	}
+	
+	for (const registro of registros) {
+		const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
+		await descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo);
+		await esperar(1500);
+	}
 }
 
 function esperar(ms: number): Promise<void> {

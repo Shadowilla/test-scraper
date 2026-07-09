@@ -180,3 +180,8 @@ export function extraerDatosDescarga(onclick: string): { componente: string; uui
 	if (!match) return null;
 	return { componente: match[1], uuid: match[2] };
 }
+
+export function limpiarNombreArchivo(nombre: string): string {
+	// Reemplaza caracteres problemáticos para el sistema de archivos de Windows
+	return nombre.replace(/[\\/:*?"<>|°\n\r]/g, '_').trim();
+}
