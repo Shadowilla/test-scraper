@@ -1,5 +1,7 @@
 import { http } from './client';
 import * as cheerio from 'cheerio';
+import fs from 'fs';
+import path from 'path';
 
 export async function obtenerViewStateInicial(): Promise<string> {
 	try {
@@ -25,6 +27,17 @@ export async function obtenerViewStateInicial(): Promise<string> {
 		console.error('Error obteniendo el ViewState inicial:', error);
 		throw error;
 	}
+}
+
+export function extraerNuevoViewState(xmlParcial: string): string {
+	const $xml = cheerio.load(xmlParcial, { xmlMode: true });
+	const nuevoViewState = $xml('update[id*="ViewState"]').text();
+	
+	if (!nuevoViewState) {
+		throw new Error('No se pudo extraer el nuevo ViewState de la respuesta');
+	}
+	
+	return nuevoViewState;
 }
 
 export async function buscarPagina(viewState: string, dtFirst: number): Promise<string> {
@@ -108,6 +121,57 @@ export function parsearTabla(xmlParcial: string): any[] {
 	});
 	
 	return registros;
+}
+
+export async function descargarPDF(
+viewState: string,
+idBoton: string,
+uuid: string,
+nombreArchivo: string
+): Promise<void> {
+	console.log(`Iniciando descarga de: ${nombreArchivo}`);
+	const payloadPDF = new URLSearchParams();
+	
+	payloadPDF.append('listarDetalleInfraccionRAAForm', 'listarDetalleInfraccionRAAForm');
+	payloadPDF.append('listarDetalleInfraccionRAAForm:txtNroexp', '');
+	payloadPDF.append('listarDetalleInfraccionRAAForm:j_idt21', '');
+	payloadPDF.append('listarDetalleInfraccionRAAForm:j_idt25', '');
+	payloadPDF.append('listarDetalleInfraccionRAAForm:idsector', '');
+	payloadPDF.append('listarDetalleInfraccionRAAForm:j_idt34', '');
+	payloadPDF.append('listarDetalleInfraccionRAAForm:dt_scrollState', '0,0');
+	payloadPDF.append(idBoton, idBoton);
+	// Si el formulario pide obligatoriamente el param_uuid en el POST, se añade:
+	if (uuid) {
+		payloadPDF.append('param_uuid', uuid);
+	}
+	payloadPDF.append('javax.faces.ViewState', viewState);
+	
+	try {
+		const response = await http.post<Buffer>(
+			'/repdig/consulta/consultaTfa.xhtml', 
+			payloadPDF.toString(), {
+				responseType: 'arraybuffer',	// Indica a Axios que descargue un archivo binario
+				headers: { 'Accept': 'application/pdf, application/octet-stream, */*' }	// Le avisa al servidor que se espera un PDF
+			}
+		);
+		
+		// Se verifica si PDF es válido
+		const firma = Buffer.from(response.data).slice(0, 4).toString();
+		if (firma !== '%PDF') {
+			throw new Error(`El archivo descargado no es un PDF válido (encabezado: ${firma})`);
+		}
+		// Se guarda físicamente el archivo en carpeta 'descargas'
+		const rutaDestino = path.join(process.cwd(), 'descargas', nombreArchivo);
+		// Crea la carpeta 'descargas' si no existe
+		if (!fs.existsSync(path.dirname(rutaDestino))) {
+			fs.mkdirSync(path.dirname(rutaDestino), { recursive: true });
+		}
+		fs.writeFileSync(rutaDestino, response.data);
+		console.log(`Archivo guardado con éxito en: ${rutaDestino}`);
+	}
+	catch (error) {
+		console.error(`Error al descargar el PDF ${nombreArchivo}:`, error);
+	}
 }
 
 export function extraerDatosDescarga(onclick: string): { componente: string; uuid: string } | null {
