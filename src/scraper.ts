@@ -40,11 +40,9 @@ export function extraerNuevoViewState(xmlParcial: string): string {
 	return nuevoViewState;
 }
 
-export async function buscarPagina(viewState: string, dtFirst: number): Promise<string> {
-	console.log('Preparando los datos para la búsqueda');
-	
+export async function buscarPrimeraPagina(viewState: string): Promise<string> {
 	// Se preparan los parámetros obligatorios del formulario (payload),
-	// especificando el número de página a consultar con dtFirst,
+	// considerando la primera página,
 	// y se envía una petición POST para obtener los resultados de la búsqueda
 	const payload = new URLSearchParams();
 	
@@ -59,13 +57,40 @@ export async function buscarPagina(viewState: string, dtFirst: number): Promise<
 	payload.append('listarDetalleInfraccionRAAForm:j_idt25', '');
 	payload.append('listarDetalleInfraccionRAAForm:idsector', '');
 	payload.append('listarDetalleInfraccionRAAForm:j_idt34', '');
-	payload.append('listarDetalleInfraccionRAAForm:dt_first', dtFirst.toString());
 	payload.append('listarDetalleInfraccionRAAForm:dt_scrollState', '0,0');
 	payload.append('javax.faces.ViewState', viewState);
 	
-	console.log('Enviando petición POST con los filtros');
-	const responsePost = await http.post<string>('/repdig/consulta/consultaTfa.xhtml', payload.toString());
-	return responsePost.data;
+	const response = await http.post<string>('/repdig/consulta/consultaTfa.xhtml', payload.toString());
+	return response.data;
+}
+
+export async function irAPagina(viewState: string, dtFirst: number): Promise<string> {
+	// Se preparan los parámetros obligatorios del formulario (payload),
+	// especificando el número de página a consultar con dtFirst,
+	// y se envía una petición POST para obtener los resultados de la búsqueda
+	const payload = new URLSearchParams();
+	
+	payload.append('javax.faces.partial.ajax', 'true');
+	payload.append('javax.faces.source', 'listarDetalleInfraccionRAAForm:dt');
+	payload.append('javax.faces.partial.execute', 'listarDetalleInfraccionRAAForm:dt');
+	payload.append('javax.faces.partial.render', 'listarDetalleInfraccionRAAForm:dt');
+	payload.append('listarDetalleInfraccionRAAForm:dt', 'listarDetalleInfraccionRAAForm:dt');
+	payload.append('listarDetalleInfraccionRAAForm:dt_pagination', 'true');
+	payload.append('listarDetalleInfraccionRAAForm:dt_first', dtFirst.toString());
+	payload.append('listarDetalleInfraccionRAAForm:dt_rows', '10');
+	payload.append('listarDetalleInfraccionRAAForm:dt_skipChildren', 'true');
+	payload.append('listarDetalleInfraccionRAAForm:dt_encodeFeature', 'true');
+	payload.append('listarDetalleInfraccionRAAForm', 'listarDetalleInfraccionRAAForm');
+	payload.append('listarDetalleInfraccionRAAForm:txtNroexp', '');
+	payload.append('listarDetalleInfraccionRAAForm:j_idt21', '');
+	payload.append('listarDetalleInfraccionRAAForm:j_idt25', '');
+	payload.append('listarDetalleInfraccionRAAForm:idsector', '');
+	payload.append('listarDetalleInfraccionRAAForm:j_idt34', '');
+	payload.append('listarDetalleInfraccionRAAForm:dt_scrollState', '0,0');
+	payload.append('javax.faces.ViewState', viewState);
+	
+	const response = await http.post<string>('/repdig/consulta/consultaTfa.xhtml', payload.toString());
+	return response.data;
 }
 
 export function parsearTabla(xmlParcial: string): any[] {
@@ -74,7 +99,7 @@ export function parsearTabla(xmlParcial: string): any[] {
 	// Se carga la respuesta del servidor en modo XML,
 	// y se extrae el texto HTML oculto dentro de la etiqueta <update>
 	const $xml = cheerio.load(xmlParcial, { xmlMode: true });
-	const htmlContenido = $xml('update[id*="pgLista"]').text();
+	const htmlContenido = $xml('update[id$="pgLista"], update[id$=":dt"]').text();
 	
 	// Control de errores en caso de que la estructura del XML cambie,
 	// intentando buscar cualquier bloque de actualización alternativo
@@ -89,7 +114,7 @@ export function parsearTabla(xmlParcial: string): any[] {
 	
 	// Se crea una nueva instancia de Cheerio ya con el HTML aislado,
 	// y se seleccionan todas las filas (tr) de la tabla limpia
-	const $ = cheerio.load(htmlContenido || $xml('update').text());
+	const $ = cheerio.load(`<table><tbody>${htmlContenido || $xml('update').text()}</tbody></table>`);
 	const registros: any[] = [];
 	const filas = $('tr');
 	
@@ -178,7 +203,7 @@ export function extraerDatosDescarga(onclick: string): { componente: string; uui
 	// Busca: 'ALGO:j_idt63':'ALGO:j_idt63'  y  'param_uuid':'ALGO'
 	const match = onclick.match(/'([\w:]+:j_idt63)':'[\w:]+','param_uuid':'([\w-]+)'/);
 	if (!match) return null;
-	return { componente: match[1], uuid: match[2] };
+	return { componente: match[1]!, uuid: match[2]! };
 }
 
 export function limpiarNombreArchivo(nombre: string): string {
