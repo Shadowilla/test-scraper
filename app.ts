@@ -14,9 +14,10 @@ import {
 async function main() {
 	let viewState = await obtenerViewStateInicial();
 	let totalDescargados = 0;
+	let paginasVaciasSeguidas = 0;
 		
-	//for (let dtFirst = 0; dtFirst < 1760; dtFirst += 10) {	// Total de registros
-	for (let dtFirst = 0; dtFirst < 30; dtFirst += 10) {	// 30 registros de prueba
+	for (let dtFirst = 0; ; dtFirst += 10) {	// Total de registros
+	//for (let dtFirst = 0; dtFirst < 30; dtFirst += 10) {	// 30 registros de prueba
 		let xml: string;
 		
 		try {
@@ -35,6 +36,21 @@ async function main() {
 		const registros = parsearTabla(xml);
 		viewState = extraerNuevoViewState(xml);
 		
+		if (registros.length === 0) {
+			paginasVaciasSeguidas++;
+			console.log(`Página dtFirst=${dtFirst} sin registros (${paginasVaciasSeguidas} vacía(s) seguida(s)).`);
+			
+			if (paginasVaciasSeguidas >= 2) {
+				console.log('Dos páginas vacías consecutivas -> se asume fin de la lista -> deteniendo el proceso.');
+				break;
+			}
+			
+			await esperar(1500);
+			continue;   // Salta a página siguiente sin intentar descargar (no hay nada que descargar)
+		}
+		
+		paginasVaciasSeguidas = 0;
+		
 		for (const registro of registros) {
 			try {
 				const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
@@ -51,37 +67,5 @@ async function main() {
 	}
 	console.log(`Proceso terminado. Total de PDFs descargados: ${totalDescargados}`);
 }
-	
-	/*while (dtFirst < 30) {
-		const registros = parsearTabla(xml);
-		viewState = extraerNuevoViewState(xml);
-		for (const registro of registros) {
-			try {
-				const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
-				await conReintentos(() => descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo), `Descarga PDF ${registro.expediente}`);
-				totalDescargados++;
-			}
-			catch (error) {
-				console.error(`Se agotaron los reintentos para ${registro.expediente}, se continúa con el siguiente.`);
-			}
-			await esperar(1500);
-		}
-		
-		console.log(`Página procesada, dtFirst=${dtFirst}, total descargados=${totalDescargados}`);
-		dtFirst += 10;
-		await esperar(1500);
-		
-		if (dtFirst < 30) {
-			try {
-				xml = await conReintentos(() => irAPagina(viewState, dtFirst), 'Búsqueda de siguientes páginas');	// Páginas siguientes con el evento de paginación real
-			}
-			catch (error) {
-				console.error(`No se pudo obtener la página con dtFirst=${dtFirst}, se detiene el proceso.`);
-				break;
-			}
-		}
-	}
-	console.log(`Proceso terminado. Total de PDFs descargados: ${totalDescargados}`);
-}*/
 
 main();

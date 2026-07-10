@@ -178,32 +178,28 @@ nombreArchivo: string
 	}
 	payloadPDF.append('javax.faces.ViewState', viewState);
 	
-	try {
-		const response = await http.post<Buffer>(
-			'/repdig/consulta/consultaTfa.xhtml', 
-			payloadPDF.toString(), {
-				responseType: 'arraybuffer',	// Indica a Axios que descargue un archivo binario
-				headers: { 'Accept': 'application/pdf, application/octet-stream, */*' }	// Le avisa al servidor que se espera un PDF
-			}
-		);
+	const response = await http.post<Buffer>(
+		'/repdig/consulta/consultaTfa.xhtml', 
+		payloadPDF.toString(), {
+			responseType: 'arraybuffer',	// Indica a Axios que descargue un archivo binario
+			headers: { 'Accept': 'application/pdf, application/octet-stream, */*' }	// Le avisa al servidor que se espera un PDF
+		}
+	);
 		
-		// Se verifica si PDF es válido
-		const firma = Buffer.from(response.data).slice(0, 4).toString();
-		if (firma !== '%PDF') {
-			throw new Error(`El archivo descargado no es un PDF válido (encabezado: ${firma})`);
-		}
-		// Se guarda físicamente el archivo en carpeta 'descargas'
-		const rutaDestino = path.join(process.cwd(), 'descargas', nombreArchivo);
-		// Crea la carpeta 'descargas' si no existe
-		if (!fs.existsSync(path.dirname(rutaDestino))) {
-			fs.mkdirSync(path.dirname(rutaDestino), { recursive: true });
-		}
-		fs.writeFileSync(rutaDestino, response.data);
-		console.log(`Archivo guardado con éxito en: ${rutaDestino}`);
+	// Se verifica si PDF es válido
+	const firma = Buffer.from(response.data).slice(0, 4).toString();
+	if (firma !== '%PDF') {
+		throw new Error(`El archivo descargado no es un PDF válido (encabezado: ${firma})`);
 	}
-	catch (error) {
-		console.error(`Error al descargar el PDF ${nombreArchivo}:`, error);
+	
+	// Se guarda físicamente el archivo en carpeta 'descargas'
+	const rutaDestino = path.join(process.cwd(), 'descargas', nombreArchivo);
+	// Crea la carpeta 'descargas' si no existe
+	if (!fs.existsSync(path.dirname(rutaDestino))) {
+		fs.mkdirSync(path.dirname(rutaDestino), { recursive: true });
 	}
+	fs.writeFileSync(rutaDestino, response.data);
+	console.log(`Archivo guardado con éxito en: ${rutaDestino}`);
 }
 
 export function limpiarNombreArchivo(nombre: string): string {
