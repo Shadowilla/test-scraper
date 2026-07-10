@@ -29,17 +29,6 @@ export async function obtenerViewStateInicial(): Promise<string> {
 	}
 }
 
-export function extraerNuevoViewState(xmlParcial: string): string {
-	const $xml = cheerio.load(xmlParcial, { xmlMode: true });
-	const nuevoViewState = $xml('update[id*="ViewState"]').text();
-	
-	if (!nuevoViewState) {
-		throw new Error('No se pudo extraer el nuevo ViewState de la respuesta');
-	}
-	
-	return nuevoViewState;
-}
-
 export async function buscarPrimeraPagina(viewState: string): Promise<string> {
 	// Se preparan los parámetros obligatorios del formulario (payload),
 	// considerando la primera página,
@@ -91,6 +80,13 @@ export async function irAPagina(viewState: string, dtFirst: number): Promise<str
 	
 	const response = await http.post<string>('/repdig/consulta/consultaTfa.xhtml', payload.toString());
 	return response.data;
+}
+
+function extraerDatosDescarga(onclick: string): { componente: string; uuid: string } | null {
+	// Busca: 'ALGO:j_idt63':'ALGO:j_idt63'  y  'param_uuid':'ALGO'
+	const match = onclick.match(/'([\w:]+:j_idt63)':'[\w:]+','param_uuid':'([\w-]+)'/);
+	if (!match) return null;
+	return { componente: match[1]!, uuid: match[2]! };
 }
 
 export function parsearTabla(xmlParcial: string): any[] {
@@ -148,6 +144,17 @@ export function parsearTabla(xmlParcial: string): any[] {
 	return registros;
 }
 
+export function extraerNuevoViewState(xmlParcial: string): string {
+	const $xml = cheerio.load(xmlParcial, { xmlMode: true });
+	const nuevoViewState = $xml('update[id*="ViewState"]').text();
+	
+	if (!nuevoViewState) {
+		throw new Error('No se pudo extraer el nuevo ViewState de la respuesta');
+	}
+	
+	return nuevoViewState;
+}
+
 export async function descargarPDF(
 viewState: string,
 idBoton: string,
@@ -199,14 +206,33 @@ nombreArchivo: string
 	}
 }
 
-export function extraerDatosDescarga(onclick: string): { componente: string; uuid: string } | null {
-	// Busca: 'ALGO:j_idt63':'ALGO:j_idt63'  y  'param_uuid':'ALGO'
-	const match = onclick.match(/'([\w:]+:j_idt63)':'[\w:]+','param_uuid':'([\w-]+)'/);
-	if (!match) return null;
-	return { componente: match[1]!, uuid: match[2]! };
-}
-
 export function limpiarNombreArchivo(nombre: string): string {
 	// Reemplaza caracteres problemáticos para el sistema de archivos de Windows
 	return nombre.replace(/[\\/:*?"<>|°\n\r]/g, '_').trim();
+}
+
+export function esperar(ms: number): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function conReintentos<T>(
+	operacion: () => Promise<T>,
+	descripcion: string,
+	maxIntentos: number = 3
+): Promise<T> {
+	for (let intento = 1; intento <= maxIntentos; intento++) {
+		try {
+			return await operacion();
+		}
+		catch (error) {
+			if (intento === maxIntentos) {
+				console.error(`${descripcion}: falló tras ${maxIntentos} intentos.`);
+				throw error;
+			}
+			const esperaMs = 2000 * Math.pow(2, intento - 1);	// Aumenta tiempo de espera de forma exponencial
+			console.warn(`${descripcion}: intento ${intento} falló, reintentando en ${esperaMs / 1000}s...`);
+			await esperar(esperaMs);
+		}
+	}
+	throw new Error('No debería llegar acá');	// TypeScript necesita esto por el tipo de retorno
 }

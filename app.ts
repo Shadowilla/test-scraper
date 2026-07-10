@@ -1,16 +1,27 @@
-import { obtenerViewStateInicial, parsearTabla, extraerNuevoViewState, descargarPDF,  limpiarNombreArchivo, buscarPrimeraPagina, irAPagina} from './src/scraper.ts';
+import {
+	obtenerViewStateInicial,
+	buscarPrimeraPagina,
+	irAPagina,
+	parsearTabla,
+	extraerNuevoViewState,
+	descargarPDF,
+	limpiarNombreArchivo,
+	esperar,
+	conReintentos,
+} from './src/scraper.ts';
+
 async function main() {
 	let viewState = await obtenerViewStateInicial();
 	let dtFirst = 0;
 	let totalDescargados = 0;
-	let xml = await buscarPrimeraPagina(viewState);
+	let xml = await conReintentos(() => buscarPrimeraPagina(viewState), 'Búsqueda inicial');
 	
 	while (dtFirst < 30) {
 		const registros = parsearTabla(xml);
 		viewState = extraerNuevoViewState(xml);
 		for (const registro of registros) {
 			const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
-			await descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo);
+			await conReintentos(() => descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo), `Descarga PDF ${registro.expediente}`);
 			totalDescargados++;
 			await esperar(1500);
 		}
@@ -20,15 +31,11 @@ async function main() {
 		await esperar(1500);
 		
 		if (dtFirst < 30) {
-			xml = await irAPagina(viewState, dtFirst);	// Páginas siguientes con el evento de paginación real
+			xml = await conReintentos(() => irAPagina(viewState, dtFirst), 'Búsqueda de siguientes páginas');	// Páginas siguientes con el evento de paginación real
 		}
 	}
 	
 	console.log(`Proceso terminado. Total de PDFs descargados: ${totalDescargados}`);
-}
-
-function esperar(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 main();
