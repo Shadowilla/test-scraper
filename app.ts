@@ -10,6 +10,7 @@ import {
 	conReintentos,
 	registrarError,
 	registrarFalloDescarga,
+	registrarSinPDF,
 } from './src/scraper.ts';
 
 async function main() {
@@ -18,7 +19,6 @@ async function main() {
 	let paginasVaciasSeguidas = 0;
 		
 	for (let dtFirst = 0; ; dtFirst += 10) {	// Total de registros
-	//for (let dtFirst = 0; dtFirst < 30; dtFirst += 10) {	// 30 registros de prueba
 		let xml: string;
 		
 		try {
@@ -52,17 +52,25 @@ async function main() {
 		
 		paginasVaciasSeguidas = 0;
 		
-		for (const registro of registros) {
+		for (const [indice, registro] of registros.entries()) {
 			const numeroPagina = (dtFirst / 10) + 1;
-			console.log(`[Página ${numeroPagina}, total descargados: ${totalDescargados}] Descargando: ${registro.expediente}`);
+			const numeroRegistroGlobal = dtFirst + indice + 1;
+			
+			if (registro.componente === 'No tiene' || registro.uuid === 'No tiene') {
+				console.log(`[Página ${numeroPagina}, registro #${numeroRegistroGlobal}] ${registro.expediente}: sin PDF disponible, se omite.`);
+				registrarSinPDF(numeroRegistroGlobal, registro.expediente, registro.resolucion);
+				continue;
+			}
+			
+			console.log(`[Página ${numeroPagina}, registro #${numeroRegistroGlobal}, total descargados: ${totalDescargados}] Descargando: ${registro.expediente}`);
 			try {
 				const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
-				await conReintentos(() => descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo), `Descarga PDF ${registro.expediente}`);
+				await conReintentos(() => descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo), `Descarga PDF ${registro.expediente} (registro #${numeroRegistroGlobal})`);
 				totalDescargados++;
 			}
 			catch (error) {
 				console.error(`Se agotaron los reintentos para ${registro.expediente}, se continúa con el siguiente.`);
-				registrarFalloDescarga(registro.expediente, registro.componente, registro.uuid, registro.resolucion);
+				registrarFalloDescarga(numeroRegistroGlobal, registro.expediente, registro.componente, registro.uuid, registro.resolucion);
 			}
 			await esperar(1500);
 		}

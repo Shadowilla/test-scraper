@@ -240,7 +240,12 @@ export function registrarError(descripcion: string, error: unknown): void {
 	fs.appendFileSync('errores.log', linea);
 }
 
-export function registrarFalloDescarga(expediente: string, componente: string, uuid: string, resolucion: string): void {
-	const registro = { expediente, componente, uuid, resolucion, fecha: new Date().toISOString() };
+export function registrarFalloDescarga(numeroRegistro: number, expediente: string, componente: string, uuid: string, resolucion: string): void {
+	const registro = { numeroRegistro, expediente, componente, uuid, resolucion, fecha: new Date().toISOString() };
 	fs.appendFileSync('fallos-descarga.jsonl', JSON.stringify(registro) + '\n');
+}
+
+export function registrarSinPDF(numeroRegistro: number, expediente: string, resolucion: string): void {
+	const registro = { numeroRegistro, expediente, resolucion, fecha: new Date().toISOString() };
+	fs.appendFileSync('sin-pdf.jsonl', JSON.stringify(registro) + '\n');
 }
