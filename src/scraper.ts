@@ -239,3 +239,8 @@ export function registrarError(descripcion: string, error: unknown): void {
 	const linea = `[${new Date().toISOString()}] ${descripcion}: ${mensaje}\n`;
 	fs.appendFileSync('errores.log', linea);
 }
+
+export function registrarFalloDescarga(expediente: string, componente: string, uuid: string, resolucion: string): void {
+	const registro = { expediente, componente, uuid, resolucion, fecha: new Date().toISOString() };
+	fs.appendFileSync('fallos-descarga.jsonl', JSON.stringify(registro) + '\n');
+}

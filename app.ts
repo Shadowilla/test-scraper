@@ -9,6 +9,7 @@ import {
 	esperar,
 	conReintentos,
 	registrarError,
+	registrarFalloDescarga,
 } from './src/scraper.ts';
 
 async function main() {
@@ -52,6 +53,8 @@ async function main() {
 		paginasVaciasSeguidas = 0;
 		
 		for (const registro of registros) {
+			const numeroPagina = (dtFirst / 10) + 1;
+			console.log(`[Página ${numeroPagina}, total descargados: ${totalDescargados}] Descargando: ${registro.expediente}`);
 			try {
 				const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
 				await conReintentos(() => descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo), `Descarga PDF ${registro.expediente}`);
@@ -59,6 +62,7 @@ async function main() {
 			}
 			catch (error) {
 				console.error(`Se agotaron los reintentos para ${registro.expediente}, se continúa con el siguiente.`);
+				registrarFalloDescarga(registro.expediente, registro.componente, registro.uuid, registro.resolucion);
 			}
 			await esperar(1500);
 		}
