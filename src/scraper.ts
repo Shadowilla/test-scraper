@@ -227,6 +227,7 @@ export async function conReintentos<T>(
 		catch (error) {
 			if (intento === maxIntentos) {
 				console.error(`${descripcion}: falló tras ${maxIntentos} intentos.`);
+				registrarError(descripcion, error);
 				throw error;
 			}
 			const esperaMs = 2000 * Math.pow(2, intento - 1);	// Aumenta tiempo de espera de forma exponencial
@@ -235,4 +236,10 @@ export async function conReintentos<T>(
 		}
 	}
 	throw new Error('No debería llegar acá');	// TypeScript necesita esto por el tipo de retorno
+}
+
+export function registrarError(descripcion: string, error: unknown): void {
+	const mensaje = error instanceof Error ? error.message : String(error);
+	const linea = `[${new Date().toISOString()}] ${descripcion}: ${mensaje}\n`;
+	fs.appendFileSync('errores.log', linea);
 }
