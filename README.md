@@ -49,7 +49,9 @@ La corrida completa (~1750 registros) tarda **más de una hora**, por los delays
 | Documentos confidenciales (sin PDF disponible) | 132 |
 | Fallos técnicos irrecuperables | 0 |
 
-**Nota sobre la diferencia 1621 → 1610:** el nombre de archivo se arma como `{expediente}_{resolucion}.pdf`. En 11 casos, dos registros distintos generaron el mismo nombre (mismo expediente y resolución), por lo que la segunda descarga sobrescribió a la primera en disco. El scraper reporta 1621 operaciones de descarga exitosas, pero el número real de archivos únicos finales es 1610. No se considera un fallo del scraper (ambas descargas fueron válidas), sino una limitación del esquema de nombrado. Se podría resolver incluyendo parte del `uuid` en el nombre del archivo para garantizar unicidad total.
+**Nota sobre la diferencia 1621 → 1610**: el nombre de archivo se arma como {expediente}_{resolucion}.pdf. En 11 casos, dos registros distintos generaron el mismo nombre (mismo expediente y resolución), por lo que la segunda descarga sobrescribió a la primera en disco. El scraper reporta 1621 operaciones de descarga exitosas, pero el número real de archivos únicos finales es 1610. No se considera un fallo del scraper (ambas descargas fueron válidas), sino una limitación del esquema de nombrado — se podría resolver incluyendo parte del uuid en el nombre del archivo para garantizar unicidad total.
+
+**Nota sobre confidenciales**: algunos números de expediente agrupan más de un procedimiento distinto (ej. dos filas separadas con el mismo número de expediente, ambas confidenciales). El conteo de 132 corresponde a filas reales de la tabla, no a expedientes únicos deduplicados.
 
 ## Estructura del proyecto
 
