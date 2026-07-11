@@ -9,6 +9,7 @@ export const http = wrapper(axios.create({
 	withCredentials: true,
 	baseURL: 'https://publico.oefa.gob.pe',
 	decompress: false,
+	timeout: 30000,
 	headers: {
 		'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
 		'Content-Type': 'application/x-www-form-urlencoded',

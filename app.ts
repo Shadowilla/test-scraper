@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import {
 	obtenerViewStateInicial,
 	buscarPrimeraPagina,
@@ -17,6 +19,7 @@ async function main() {
 	let viewState = await obtenerViewStateInicial();
 	let totalDescargados = 0;
 	let paginasVaciasSeguidas = 0;
+	let fallosPeticionSeguidos = 0;
 		
 	for (let dtFirst = 0; ; dtFirst += 10) {	// Total de registros
 		let xml: string;
@@ -28,10 +31,16 @@ async function main() {
 			else {
 				xml = await conReintentos(() => irAPagina(viewState, dtFirst), `Página dtFirst=${dtFirst}`);
 			}
+			fallosPeticionSeguidos = 0;	// Se resetea si la petición funciona
 		}
 		catch (error) {
-			console.error(`No se pudo obtener la página dtFirst=${dtFirst}, se omite y se continúa con la siguiente.`);
-			continue;	// Salta directo a la próxima vuelta del for (página siguiente), con el próximo dtFirst
+			fallosPeticionSeguidos++;
+			console.error(`No se pudo obtener la página dtFirst=${dtFirst} (${fallosPeticionSeguidos} fallo(s) de petición seguido(s)).`);
+			if (fallosPeticionSeguidos >= 3) {
+				console.error('3 páginas seguidas fallaron a nivel de petición (posible bloqueo del servidor) -> deteniendo el proceso.');
+				break;
+			}
+			continue;
 		}
 		
 		const registros = parsearTabla(xml);
@@ -63,8 +72,16 @@ async function main() {
 			}
 			
 			console.log(`[Página ${numeroPagina}, registro #${numeroRegistroGlobal}, total descargados: ${totalDescargados}] Descargando: ${registro.expediente}`);
+			
+			const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
+			const rutaArchivo = path.join(process.cwd(), 'descargas', nombreArchivo);
+			if (fs.existsSync(rutaArchivo)) {
+				console.log(`[Página ${numeroPagina}, registro #${numeroRegistroGlobal}] ${registro.expediente}: ya descargado, se omite.`);
+				totalDescargados++;
+				continue;
+			}
+			
 			try {
-				const nombreArchivo = limpiarNombreArchivo(`${registro.expediente}_${registro.resolucion}.pdf`);
 				await conReintentos(() => descargarPDF(viewState, registro.componente, registro.uuid, nombreArchivo), `Descarga PDF ${registro.expediente} (registro #${numeroRegistroGlobal})`);
 				totalDescargados++;
 			}
